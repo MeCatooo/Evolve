@@ -5295,6 +5295,208 @@ div.bigbang {
     height: ~"calc(100vh - 6rem)";
 }
 
+// Keep the dense desktop layout on larger screens, but make the game usable
+// as a vertically scrolling page on phones and narrow tablets.
+@media only screen and (max-width: 48rem) {
+    html {
+        height: 100%;
+        overflow-x: hidden;
+        overflow-y: auto;
+        -webkit-text-size-adjust: 100%;
+    }
+
+    body {
+        min-height: 100%;
+        overflow-x: hidden;
+        overflow-y: auto;
+        padding-bottom: env(safe-area-inset-bottom);
+    }
+
+    .topBar {
+        position: sticky;
+        min-height: 1.5rem;
+        height: auto;
+        align-items: center;
+        flex-wrap: wrap;
+        padding: env(safe-area-inset-top) .5rem 0;
+        box-sizing: border-box;
+        line-height: 1.5rem;
+
+        .planetWrap {
+            margin-left: 0;
+
+            .universe,
+            .simulation,
+            .pet {
+                margin-left: .375rem;
+                padding-left: .375rem;
+            }
+        }
+
+        .calendar {
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            justify-content: flex-end;
+            margin: 0 0 0 auto;
+
+            .infoTimer,
+            .atime {
+                margin-right: .25rem;
+                margin-left: .25rem;
+            }
+        }
+
+        .version {
+            display: none;
+        }
+    }
+
+    .main {
+        margin: .5rem .5rem 1rem;
+        overflow: visible;
+
+        > .columns {
+            display: flex;
+            flex-direction: column;
+
+            > :first-child {
+                min-width: 0;
+            }
+        }
+
+        .leftColumn,
+        #mainColumn {
+            width: 100%;
+            max-width: 100%;
+            flex: 0 0 auto;
+            min-width: 0;
+        }
+
+        #mainColumn {
+            order: 1;
+        }
+
+        .leftColumn {
+            order: 2;
+            height: auto;
+
+            .race {
+                margin-top: .25rem;
+            }
+        }
+
+        .content {
+            .settings,
+            .mtab,
+            #evolution,
+            .resTabs > section,
+            .govTabs2 > section,
+            #hellTabs > section {
+                height: auto;
+                min-height: 50dvh;
+            }
+
+            .tab-item {
+                padding-left: .25rem;
+            }
+
+            > .tab-content {
+                padding-left: .25rem;
+            }
+
+            .tabs {
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+
+                ul {
+                    flex-wrap: nowrap;
+                }
+
+                li {
+                    flex: 0 0 auto;
+                }
+            }
+        }
+
+        .resources {
+            height: ~"min(45dvh, 22rem)";
+            min-height: 10rem;
+        }
+
+        .bldQueue,
+        .msgQueue {
+            resize: none;
+        }
+    }
+
+    .modal .modal-content {
+        width: calc(100vw - 1rem);
+        min-width: 0;
+        max-width: calc(100vw - 1rem);
+        max-height: calc(100dvh - 2rem - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+        overflow: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .modalBox,
+    .industry {
+        padding: .75rem;
+    }
+
+    .main > div.popper,
+    body .modal > div.popper {
+        max-width: calc(100vw - 1rem);
+        overflow-wrap: anywhere;
+    }
+
+    button,
+    .button,
+    input,
+    select,
+    textarea {
+        font-size: ~"max(16px, 1em)";
+    }
+}
+
+@media only screen and (max-width: 30rem) {
+    .topBar {
+        justify-content: space-between;
+
+        .calendar {
+            flex: 1 1 100%;
+            justify-content: flex-start;
+        }
+    }
+
+    .main .content .action {
+        width: calc(50% - .25rem);
+
+        a.button,
+        span.oldTech {
+            box-sizing: border-box;
+            width: 100%;
+            min-height: 2.75rem;
+            margin: .25rem .125rem 0 0;
+            white-space: normal;
+        }
+    }
+
+    .main .resources .resource {
+        div {
+            width: 65%;
+        }
+
+        > :nth-child(2) {
+            width: 8%;
+        }
+
+        > :nth-child(3) {
+            width: 27%;
+        }
+    }
+}
+
 .resTabs>section,
 .resTabs>.tabs,
 .bldQueue {
