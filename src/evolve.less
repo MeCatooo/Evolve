@@ -5375,6 +5375,25 @@ div.bigbang {
 
         #mainColumn {
             order: 1;
+            min-width: 0;
+
+            .content {
+                width: 100%;
+                max-width: 100%;
+                min-width: 0;
+
+                .action {
+                    max-width: 100%;
+                    min-width: 0;
+                    vertical-align: top;
+
+                    a.button,
+                    span.oldTech {
+                        box-sizing: border-box;
+                        max-width: 100%;
+                    }
+                }
+            }
         }
 
         .leftColumn {
@@ -5470,6 +5489,7 @@ div.bigbang {
     }
 
     .main .content .action {
+        box-sizing: border-box;
         width: calc(50% - .25rem);
 
         a.button,
