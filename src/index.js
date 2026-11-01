@@ -906,7 +906,7 @@ export function index(){
         </span>
         <span class="calendar">
             <span class="infoTimer" id="infoTimer"></span>
-            <span v-show="city.calendar.day">
+            <span class="dateBar" v-show="city.calendar.day">
                 <span class="is-sr-only" v-html="sign()"></span><span id="astroSign" class="astro" v-html="getAstroSign()"></span>
                 <b-tooltip :label="moon()" :aria-label="moon()" position="is-bottom" size="is-small" multilined animated><i id="moon" class="moon wi"></i></b-tooltip>
                 <span class="year">${loc('year')} <span class="has-text-warning">{{ city.calendar.year }}</span></span>
@@ -915,7 +915,7 @@ export function index(){
                 <b-tooltip :label="weather()" :aria-label="weather()" position="is-bottom" size="is-small" multilined animated><i id="weather" class="weather wi"></i></b-tooltip>
                 <b-tooltip :label="temp()" :aria-label="temp()" position="is-bottom" size="is-small" multilined animated><i id="temp" class="temp wi"></i></b-tooltip>
                 <b-tooltip :label="atRemain()" v-show="s.at" :aria-label="atRemain()" position="is-bottom" size="is-small" multilined animated><span class="atime has-text-caution">{{ s.at | remain }}</span></b-tooltip>
-                <span role="button" class="atime" style="padding: 0 0.5rem; margin-left: 0.5rem; cursor: pointer" @click="pause" :aria-label="pausedesc()">
+                <span role="button" class="atime pauseButton" style="padding: 0 0.5rem; margin-left: 0.5rem; cursor: pointer" @click="pause" :aria-label="pausedesc()">
                     <span id="pausegame"></span>
                 </span>
             </span>
@@ -929,7 +929,12 @@ export function index(){
     main.append(columns);
 
     // Left Column
-    columns.append(`<div class="column is-one-quarter leftColumn">
+    columns.append(`<div class="column is-one-quarter leftColumn" data-dock="${global.settings.mobileDock || 'resources'}">
+        <div id="mobileDock" class="mobileDock">
+            <span role="button" :class="tabClass('resources')" :aria-pressed="view === 'resources' ? 'true' : 'false'" @click="toggle('resources')">${loc('tab_resources')}</span>
+            <span role="button" :class="tabClass('log')" :aria-pressed="view === 'log' ? 'true' : 'false'" @click="toggle('log')">${loc('message_log')}</span>
+            <span role="button" :class="tabClass('queue')" :aria-pressed="view === 'queue' ? 'true' : 'false'" v-show="q.display" @click="toggle('queue')">${loc('queue')}</span>
+        </div>
         <div id="race" class="race colHeader">
             <h2 class="is-sr-only">Race Info</h2>
             <div class="name">{{ name() }}</div>
@@ -963,6 +968,24 @@ export function index(){
         </div>
         <div id="resources" class="resources vscroll"><h2 class="is-sr-only">${loc('tab_resources')}</h2></div>
     </div>`);
+    // Phones show the left column as one panel at a time; tapping the open panel closes it
+    vBind({
+        el: `#mobileDock`,
+        data: {
+            view: global.settings.mobileDock || 'resources',
+            q: global.queue
+        },
+        methods: {
+            tabClass(view){
+                return this.view === view ? 'has-text-success is-active' : '';
+            },
+            toggle(view){
+                this.view = this.view === view ? 'none' : view;
+                global.settings.mobileDock = this.view;
+                $(`.leftColumn`).attr('data-dock', this.view);
+            }
+        }
+    });
     message_filters.forEach(function (filter){
         $(`#msgQueueFilters`).append(`
             <span id="msgQueueFilter-${filter}" class="${filter === 'all' ? 'is-active' : ''}" aria-disabled="${filter === 'all' ? 'true' : 'false'}" @click="swapFilter('${filter}')" v-show="s.${filter}.vis" role="button">${loc('message_log_' + filter)}</span>
@@ -1295,6 +1318,15 @@ export function index(){
         });
     }
 
+    let externalLinks = `
+        <li><a href="wiki.html" target="_blank">Wiki</a></li>
+        <li><a href="https://www.reddit.com/r/EvolveIdle/" target="_blank">Reddit</a></li>
+        <li><a href="https://discord.gg/dcwdQEr" target="_blank">Discord</a></li>
+        <li><a href="https://github.com/pmotschmann/Evolve" target="_blank">GitHub</a></li>
+        <li><a href="https://www.patreon.com/demagorddon" target="_blank">Patreon</a></li>
+        <li><a href="https://www.paypal.com/cgi-bin/webscr?cmd=_donations&business=PTRJZBW9J662C&currency_code=USD&source=url" target="_blank">Donate</a></li>
+    `;
+
     // Settings Tab
     let settings = $(`<b-tab-item id="settings" class="settings sticky">
         <template slot="header">
@@ -1464,6 +1496,10 @@ export function index(){
                 </div>
             </b-collapse>
         </div>
+        <ul class="external-links mobileLinks">
+            <li><a href="wiki.html#changelog" target="_blank">v${global.version}</a></li>
+            ${externalLinks}
+        </ul>
     </b-tab-item>`);
 
     tabs.append(settings);
@@ -1491,14 +1527,7 @@ export function index(){
             </span>
             <span class="right">
                 <h2 class="is-sr-only">External Links</h2>
-                <ul class="external-links">
-                    <li><a href="wiki.html" target="_blank">Wiki</a></li>
-                    <li><a href="https://www.reddit.com/r/EvolveIdle/" target="_blank">Reddit</a></li>
-                    <li><a href="https://discord.gg/dcwdQEr" target="_blank">Discord</a></li>
-                    <li><a href="https://github.com/pmotschmann/Evolve" target="_blank">GitHub</a></li>
-                    <li><a href="https://www.patreon.com/demagorddon" target="_blank">Patreon</a></li>
-                    <li><a href="https://www.paypal.com/cgi-bin/webscr?cmd=_donations&business=PTRJZBW9J662C&currency_code=USD&source=url" target="_blank">Donate</a></li>
-                </ul>
+                <ul class="external-links">${externalLinks}</ul>
             </span>
         </div>
     `);

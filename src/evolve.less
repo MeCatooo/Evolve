@@ -938,6 +938,7 @@ Misc ---------> Main template
     .mainTemplate() {
         // Basic
         background-color: @html-background;
+        --page-background: @{html-background};
 
         body {
             color: @primary-color;
@@ -5295,35 +5296,59 @@ div.bigbang {
     height: ~"calc(100vh - 6rem)";
 }
 
-// Keep the dense desktop layout on larger screens, but make the game usable
-// as a vertically scrolling page on phones and narrow tablets.
-@media only screen and (max-width: 48rem) {
+// Keep the dense desktop layout on larger screens. Phones and narrow tablets get an app shell
+// instead: the bars keep their natural height, the left column becomes a dock showing one panel
+// at a time, and only the tab content scrolls. Landscape phones are wider than 48rem but much
+// too short for the desktop layout, so they are matched on height.
+@mobile: ~"only screen and (max-width: 48rem), only screen and (hover: none) and (pointer: coarse) and (max-height: 30rem)";
+// Wide enough to keep the dock beside the tab content
+@mobile-split: ~"only screen and (min-width: 37.5rem) and (max-width: 48rem), only screen and (hover: none) and (pointer: coarse) and (max-height: 30rem) and (orientation: landscape)";
+// Too narrow for rows of full width action buttons
+@mobile-actions: ~"only screen and (max-width: 30rem), @{mobile-split}";
+
+.mobileDock,
+.mobileLinks {
+    display: none;
+}
+
+@media @mobile {
+    :root {
+        // Height kept free along the bottom edge for the on screen keys bar
+        --mobile-bar: 2.75rem;
+        --dock-panel: 30vh;
+        --tab-strip: 2.5rem;
+    }
+
     html {
         height: 100%;
-        overflow-x: hidden;
-        overflow-y: auto;
+        overflow: hidden;
         -webkit-text-size-adjust: 100%;
     }
 
     body {
-        min-height: 100%;
-        overflow-x: hidden;
-        overflow-y: auto;
-        padding-bottom: env(safe-area-inset-bottom);
+        display: flex;
+        flex-direction: column;
+        box-sizing: border-box;
+        height: 100%;
+        overflow: hidden;
+        overscroll-behavior: none;
+        padding: 0 env(safe-area-inset-right) calc(var(--mobile-bar) + env(safe-area-inset-bottom)) env(safe-area-inset-left);
     }
 
     .topBar {
-        position: sticky;
-        min-height: 1.5rem;
-        height: auto;
-        align-items: center;
+        position: relative;
+        flex: 0 0 auto;
         flex-wrap: wrap;
-        padding: env(safe-area-inset-top) .5rem 0;
+        align-items: center;
         box-sizing: border-box;
-        line-height: 1.5rem;
+        min-height: 2rem;
+        height: auto;
+        padding: env(safe-area-inset-top) 0 0 .5rem;
+        line-height: 1.25rem;
 
         .planetWrap {
-            margin-left: 0;
+            min-width: 0;
+            margin: 0 .5rem 0 0;
 
             .universe,
             .simulation,
@@ -5335,16 +5360,49 @@ div.bigbang {
 
         .calendar {
             display: flex;
+            flex: 1 1 auto;
             align-items: center;
             flex-wrap: wrap;
             justify-content: flex-end;
-            margin: 0 0 0 auto;
+            min-width: 0;
+            margin: 0;
 
-            .infoTimer,
-            .atime {
-                margin-right: .25rem;
-                margin-left: .25rem;
+            .infoTimer {
+                margin: 0 .5rem 0 0;
             }
+
+            .atime {
+                margin-left: 0;
+            }
+
+            .astro {
+                margin-right: 0;
+            }
+
+            // The inline padding and margin only suit a mouse
+            .pauseButton {
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                width: 2.75rem;
+                height: 2rem;
+                margin: 0 !important;
+                padding: 0 !important;
+            }
+
+            #pausegame {
+                bottom: 0;
+                transform: scale(1.75);
+            }
+        }
+
+        .dateBar {
+            display: inline-flex;
+            align-items: center;
+            flex-wrap: wrap;
+            justify-content: flex-end;
+            column-gap: .25rem;
+            min-width: 0;
         }
 
         .version {
@@ -5352,13 +5410,25 @@ div.bigbang {
         }
     }
 
+    .promoBar {
+        display: none;
+    }
+
     .main {
-        margin: .5rem .5rem 1rem;
-        overflow: visible;
+        position: relative;
+        display: flex;
+        flex: 1 1 auto;
+        flex-direction: column;
+        min-height: 0;
+        margin: 0;
+        padding: 0 .5rem;
+        overflow: hidden;
 
         > .columns {
             display: flex;
+            flex: 1 1 auto;
             flex-direction: column;
+            min-height: 0;
 
             > :first-child {
                 min-width: 0;
@@ -5369,18 +5439,52 @@ div.bigbang {
         #mainColumn {
             width: 100%;
             max-width: 100%;
-            flex: 0 0 auto;
             min-width: 0;
         }
 
+        .leftColumn {
+            display: flex;
+            flex: 0 0 auto;
+            flex-direction: column;
+            height: auto;
+
+            .race {
+                margin-top: .125rem;
+                font-size: .875rem;
+            }
+
+            #sideQueue,
+            .resources {
+                display: none;
+            }
+
+            &[data-dock="resources"] .resources,
+            &[data-dock="log"] #sideQueue,
+            &[data-dock="queue"] #sideQueue {
+                display: block;
+            }
+
+            // The queue is toggled through v-show, so it has to be overridden rather than shown
+            &[data-dock="log"] #buildQueue,
+            &[data-dock="queue"] #msgQueue {
+                display: none !important;
+            }
+        }
+
         #mainColumn {
-            order: 1;
-            min-width: 0;
+            flex: 1 1 0;
+            min-height: 0;
+            overflow-x: hidden;
+            overflow-y: auto;
+            overscroll-behavior: contain;
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: thin;
 
             .content {
                 width: 100%;
                 max-width: 100%;
                 min-width: 0;
+                margin-bottom: 0;
 
                 .action {
                     max-width: 100%;
@@ -5396,24 +5500,28 @@ div.bigbang {
             }
         }
 
-        .leftColumn {
-            order: 2;
-            height: auto;
-
-            .race {
-                margin-top: .25rem;
-            }
+        .queueCol {
+            display: none;
         }
 
         .content {
+            // Only the main column scrolls, the desktop's nested scroll boxes would fight it
             .settings,
+            .sticky,
             .mtab,
             #evolution,
+            #hellAnalysis,
+            .hellReports > div,
             .resTabs > section,
             .govTabs2 > section,
             #hellTabs > section {
+                position: static;
                 height: auto;
-                min-height: 50dvh;
+                overflow: visible;
+            }
+
+            .settings {
+                margin-left: .25rem;
             }
 
             .tab-item {
@@ -5425,37 +5533,548 @@ div.bigbang {
             }
 
             .tabs {
+                margin-bottom: .25rem;
                 overflow-x: auto;
+                overflow-y: hidden;
                 -webkit-overflow-scrolling: touch;
+                scrollbar-width: none;
 
                 ul {
                     flex-wrap: nowrap;
+                    margin-top: 0;
+                    margin-left: 0;
                 }
 
                 li {
                     flex: 0 0 auto;
                 }
+
+                a {
+                    box-sizing: border-box;
+                    display: flex;
+                    align-items: center;
+                    height: var(--tab-strip);
+                    padding: 0 .75rem;
+                }
+            }
+
+            #mainTabs > .tabs,
+            .resTabs > .tabs {
+                position: sticky;
+                margin-bottom: 0;
+                background-color: var(--page-background);
+            }
+
+            #mainTabs > .tabs {
+                top: 0;
+                z-index: 4;
+            }
+
+            .resTabs > .tabs {
+                top: var(--tab-strip);
+                z-index: 3;
             }
         }
 
         .resources {
-            height: ~"min(45dvh, 22rem)";
-            min-height: 10rem;
+            // The game loop sizes this inline for the desktop layout
+            height: auto !important;
+            max-height: var(--dock-panel);
+            margin-top: .125rem;
+            font-size: .875rem;
+            line-height: 1.25rem;
+            overscroll-behavior: contain;
+
+            h3 {
+                overflow: hidden;
+                min-width: 0;
+                font-size: .875rem;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+            }
+
+            .count {
+                flex: 0 0 auto;
+                margin-left: .25rem;
+                white-space: nowrap;
+            }
+
+            .resource > :nth-child(2) {
+                min-width: 1.5rem;
+            }
+
+            .interact {
+                display: block;
+                text-align: center;
+            }
+
+            .craftable {
+                display: flex;
+                justify-content: flex-end;
+
+                a {
+                    display: inline-block;
+                    min-width: 1.75rem;
+                    line-height: 1.5rem;
+                    text-align: center;
+                }
+            }
         }
 
         .bldQueue,
         .msgQueue {
+            // Saved desktop heights are set inline
+            height: auto !important;
+            max-height: var(--dock-panel);
             resize: none;
+            overscroll-behavior: contain;
+        }
+
+        .bldQueue .buildList,
+        .resQueue .buildList {
+            margin-left: 0;
+        }
+
+        .resQueue h2,
+        .resQueue .buildList {
+            margin-left: .25rem;
+        }
+
+        #pausequeue,
+        #pauserqueue {
+            transform: scale(1.5);
+
+            &::after {
+                content: "";
+                position: absolute;
+                top: -1rem;
+                right: -1rem;
+                bottom: -1rem;
+                left: -1rem;
+            }
+        }
+
+        #msgQueueHeader {
+            display: flex;
+            align-items: center;
+
+            span {
+                margin-left: 0;
+                padding: .25rem .5rem;
+            }
+        }
+
+        .queue,
+        .theme,
+        .localization {
+            .dropdown button {
+                height: 2.25rem;
+            }
+        }
+
+        .jobList {
+            max-width: none;
+        }
+
+        .job {
+            min-width: 0;
+            margin-left: 0;
+
+            .job_label {
+                flex: 1 1 0;
+                min-width: 0;
+
+                > :first-child {
+                    flex: 1 1 0;
+                    min-width: 0;
+                    width: auto;
+                }
+            }
+        }
+
+        .government {
+            .taxRate {
+                align-items: center;
+                height: auto;
+            }
+
+            .foreign {
+                button {
+                    height: 2.25rem;
+                }
+
+                .tspy,
+                .sspy {
+                    width: calc(50% - .25rem);
+                }
+
+                .gaction {
+                    width: 100%;
+                }
+
+                .attack {
+                    width: calc(50% - .25rem);
+                }
+            }
+        }
+
+        .fort {
+            .observe,
+            .merc {
+                height: 2rem;
+                line-height: 1rem;
+            }
+
+            // Three label, sub, current, add runs followed by full width rows
+            > div:has(> .armyLabel) {
+                display: grid;
+                grid-template-columns: 1fr auto auto auto;
+                align-items: center;
+
+                > .hireLabel,
+                > .bunks,
+                > div {
+                    grid-column: ~"1 / -1";
+                }
+            }
+        }
+
+        .garrison {
+            .columns {
+                margin-left: 0;
+                margin-right: 0;
+            }
+
+            .war .tactics {
+                align-items: center;
+                height: auto;
+            }
+        }
+
+        .market-header {
+            margin: .25rem 0;
+
+            .market {
+                margin-left: 0;
+                margin-right: 0;
+
+                .button,
+                input {
+                    height: 2.25rem;
+                }
+            }
+        }
+
+        .zero {
+            display: inline-block;
+            padding: .25rem 0;
+        }
+
+        .b-checkbox.checkbox,
+        .setting {
+            min-height: 1.75rem;
+        }
+
+        .ShipYardTab,
+        .militaryTab,
+        .mechTab {
+            margin-left: 0;
+        }
+
+        .hellReports {
+            flex-direction: column;
+
+            .reportList,
+            .reportDisplay {
+                width: 100%;
+                margin-right: 0;
+            }
+
+            .reportList {
+                border-right: 0;
+                border-bottom: .0625rem solid;
+            }
+        }
+
+        .hellAnalysis {
+            flex-wrap: wrap;
+
+            .analysisColumn {
+                width: 100%;
+                margin: 0;
+            }
+        }
+
+    }
+
+    // The power grid is styled through the themes, so it needs the extra weight
+    html .main .content {
+        .powerGridHeader,
+        .resetPowerGrid {
+            margin-left: 0;
+        }
+
+        .resetPowerGrid .button {
+            height: 2rem;
+        }
+
+        .powerGrid {
+            margin-left: 0;
+
+            .circuit {
+                align-items: center;
+                width: 100%;
+                min-width: 0;
+
+                &:not(.inactive) {
+                    display: flex;
+                }
+
+                .struct {
+                    flex: 1 1 0;
+                    min-width: 0;
+                    width: auto;
+                }
+
+                > .sub,
+                > .add {
+                    display: inline-flex;
+                }
+            }
+        }
+
+        .gridHeader {
+            margin-left: 0;
         }
     }
 
-    .modal .modal-content {
+    .ShipYardTab .stats {
+        flex-wrap: wrap;
+    }
+
+    .basic-button {
+        box-sizing: border-box;
+        height: 2rem;
+        padding-top: .375rem;
+    }
+
+    // Steppers are sized for a mouse everywhere else
+    .add,
+    .sub {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        box-sizing: border-box;
+        min-width: 2.25rem;
+        height: 2rem;
+    }
+
+    .current {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        box-sizing: border-box;
+        min-width: 2.5rem;
+        height: 2rem;
+    }
+
+    html .main .sliderbar {
+        display: flex;
+        align-items: center;
+
+        > span {
+            flex: 0 0 auto;
+            width: auto;
+            bottom: 0;
+            margin: 0;
+        }
+
+        .b-slider {
+            flex: 1 1 0;
+            width: auto;
+            margin: 0 .5rem;
+        }
+    }
+
+    .market-item {
+        align-items: center;
+        flex-wrap: wrap;
+        margin-left: 0;
+
+        .res {
+            width: 6.5rem;
+            margin-right: .25rem;
+        }
+
+        .sell {
+            margin-left: .25rem;
+        }
+
+        .order {
+            box-sizing: border-box;
+            min-width: 3.5rem;
+            height: 2rem;
+            margin: 0 .125rem;
+            padding-top: .375rem;
+        }
+
+        .trade {
+            display: inline-flex;
+            flex: 1 1 12rem;
+            align-items: center;
+            justify-content: flex-end;
+            min-width: 0;
+            margin-left: 0;
+
+            .current {
+                width: auto;
+            }
+
+            .add,
+            .sub {
+                top: 0;
+            }
+
+            .mass {
+                flex: 1 1 0;
+                min-width: 6rem;
+                margin-left: .5rem;
+                font-size: .875rem;
+                line-height: 1rem;
+            }
+        }
+
+        .crtTotal,
+        .cntTotal,
+        .tradeTotal,
+        .tradeTotal.nt {
+            margin-left: 0;
+        }
+
+        // Storage rows hold two steppers, leave them a full line
+        &[id^="stack-"] {
+            .res {
+                width: 100%;
+            }
+
+            .trade {
+                flex-basis: auto;
+            }
+        }
+    }
+
+    .storage-header {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: space-around;
+
+        .crate,
+        .container {
+            margin: .125rem;
+        }
+    }
+
+    .industryTab,
+    .psychicTab,
+    .supernaturalTab {
+        display: block;
+    }
+
+    // A flat run of sub, current, add triples
+    .fuels,
+    #iGraphene > div:nth-of-type(2) {
+        display: grid;
+        grid-template-columns: auto 1fr auto auto 1fr auto;
+        align-items: center;
+        row-gap: .25rem;
+        margin-top: .25rem;
+
+        .infoOnly {
+            grid-column: span 3;
+        }
+
+        .current {
+            min-width: 0;
+        }
+    }
+
+    .industry {
+        box-sizing: border-box;
+        width: 100%;
+        min-height: 0;
+
+        .factory {
+            display: flex;
+            align-items: center;
+            margin-top: .125rem;
+
+            > :first-child {
+                flex: 1 1 0;
+                min-width: 0;
+                width: auto;
+            }
+        }
+    }
+
+    .arpaProject {
+        box-sizing: border-box;
+        width: 100%;
+        margin-right: 0;
+
+        .buy .button {
+            height: 2.25rem;
+        }
+    }
+
+    .mobileDock {
+        display: flex;
+        flex: 0 0 auto;
+        border-bottom: solid .0625rem;
+
+        > span {
+            display: flex;
+            flex: 1 1 0;
+            align-items: center;
+            justify-content: center;
+            min-width: 0;
+            height: 2.25rem;
+            padding: 0 .25rem;
+            cursor: pointer;
+            text-align: center;
+            font-size: .875rem;
+            line-height: 1rem;
+        }
+
+        > .is-active {
+            box-shadow: inset 0 -.125rem currentColor;
+        }
+    }
+
+    .mobileLinks {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        margin: 1rem 0;
+        list-style: none;
+
+        a {
+            display: block;
+            padding: .5rem .75rem;
+        }
+    }
+
+    // Needs to outrank the desktop modal rule further down
+    html .modal .modal-content {
         width: calc(100vw - 1rem);
         min-width: 0;
         max-width: calc(100vw - 1rem);
         max-height: calc(100dvh - 2rem - env(safe-area-inset-top) - env(safe-area-inset-bottom));
         overflow: auto;
         -webkit-overflow-scrolling: touch;
+    }
+
+    .modal .actionSpace {
+        min-width: 0;
     }
 
     .modalBox,
@@ -5478,28 +6097,50 @@ div.bigbang {
     }
 }
 
-@media only screen and (max-width: 30rem) {
-    .topBar {
-        justify-content: space-between;
-
-        .calendar {
-            flex: 1 1 100%;
-            justify-content: flex-start;
-        }
+// Short screens can't spare the height for a second pinned strip
+@media only screen and (max-height: 44rem) {
+    :root {
+        --dock-panel: 24vh;
     }
 
-    .main .content .action {
-        box-sizing: border-box;
-        width: calc(50% - .25rem);
+    .main .content .resTabs > .tabs {
+        position: static;
+    }
+}
 
-        a.button,
-        span.oldTech {
-            box-sizing: border-box;
-            width: 100%;
-            min-height: 2.75rem;
-            margin: .25rem .125rem 0 0;
-            white-space: normal;
+@media @mobile-split {
+    :root {
+        --dock-panel: none;
+    }
+
+    .main {
+        > .columns {
+            flex-direction: row;
         }
+
+        .leftColumn {
+            flex: 0 0 16rem;
+            width: 16rem;
+            margin-right: .5rem;
+
+            #sideQueue,
+            .resources {
+                flex: 1 1 0;
+                min-height: 0;
+                overflow-y: auto;
+            }
+        }
+
+        #mainColumn {
+            width: auto;
+        }
+    }
+}
+
+@media only screen and (max-width: 30rem) {
+    .topBar .calendar .infoTimer {
+        flex: 1 1 100%;
+        margin: 0;
     }
 
     .main .resources .resource {
@@ -5513,6 +6154,52 @@ div.bigbang {
 
         > :nth-child(3) {
             width: 27%;
+        }
+
+        // Also a second child, on crafted resources
+        > .craftable {
+            width: 35%;
+        }
+    }
+}
+
+@media @mobile-actions {
+    .main .content .action {
+        box-sizing: border-box;
+        width: 50%;
+
+        a.button,
+        span.oldTech {
+            box-sizing: border-box;
+            width: calc(100% - .25rem);
+            min-height: 3rem;
+            margin: .25rem .25rem 0 0;
+            white-space: normal;
+        }
+
+        div.special,
+        span.on,
+        span.off {
+            box-sizing: border-box;
+            min-width: 1.75rem;
+            height: 1.5rem;
+            line-height: 1.375rem;
+            text-align: center;
+        }
+
+        div.special {
+            top: .25rem;
+        }
+
+        span.on {
+            right: .25rem;
+        }
+    }
+
+    .large_all .main .content .action {
+        a.button,
+        span.oldTech {
+            width: calc(100% - .25rem);
         }
     }
 }
