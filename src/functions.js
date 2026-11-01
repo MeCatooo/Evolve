@@ -1,4 +1,4 @@
-import { global, save, message_logs, message_filters, webWorker, keyMultiplier, intervals, resizeGame, atrack, p_on, quantum_level, tmp_vars } from './vars.js';
+import { global, save, message_logs, message_filters, webWorker, keyMultiplier, intervals, resizeGame, atrack, p_on, quantum_level, tmp_vars, touchMode, touchDrag } from './vars.js';
 import { loc } from './locale.js';
 import { races, traits, genus_def, traitSkin, fathomCheck } from './races.js';
 import { actions, actionDesc } from './actions.js';
@@ -15,87 +15,212 @@ import { shipCosts, TPShipDesc } from './truepath.js';
 import { mechCost, mechDesc } from './portal.js';
 
 var popperRef = false;
+var popperAnchor = false; // Element the open tooltip is positioned against
+var popperTap = false;    // Element whose tap opened the tooltip
+var popperOut = false;    // Closes the open tooltip, running its out callback
+var touching = 0;
+var lastTouch = 0;
+var touchOrigin = false;
+const tapTargets = new WeakMap();
+
 export function popover(id,content,opts){
     if (!opts){ opts = {}; }
     if (!opts.hasOwnProperty('elm')){ opts['elm'] = '#'+id; }
     if (!opts.hasOwnProperty('bind')){ opts['bind'] = true; }
     if (!opts.hasOwnProperty('unbind')){ opts['unbind'] = true; }
     if (!opts.hasOwnProperty('placement')){ opts['placement'] = 'bottom'; }
+
+    const hide = function(){
+        clearPopper();
+        if (opts.hasOwnProperty('out') && typeof opts['out'] === 'function'){
+            opts['out']({ this: this, popper: $(`#popper`), id: `popper`});
+        }
+    };
+
+    const show = function(tap){
+        if (popperRef || $(`#popper`).length > 0){
+            clearPopper();
+        }
+        popperTap = tap ? this : false;
+        popperOut = hide.bind(this);
+        let wide = opts['wide'] ? ' wide' : '';
+        let classes = opts['classes'] ? opts['classes'] : `has-background-light has-text-dark pop-desc`;
+        var popper = $(`<div id="popper" class="popper${wide} ${classes}" data-id="${id}"></div>`);
+        if (opts['attach']){
+            $(opts['attach']).append(popper);
+        }
+        else {
+            $(`#main`).append(popper);
+        }
+        if (content){
+            popper.append(typeof content === 'function' ? content({ this: this, popper: popper }) : content);
+        }
+
+        const touch = touchMode();
+        popperAnchor = opts['self'] ? this : $(opts.elm)[0];
+        popperRef = Popper.createPopper(popperAnchor,
+            document.querySelector(`#popper`),
+            {
+                placement: opts['placement'],
+                strategy: touch ? 'fixed' : 'absolute',
+                modifiers: [
+                    {
+                        name: 'flip',
+                        enabled: true,
+                        options: touch ? { padding: popperPadding() } : {},
+                    },
+                    {
+                        name: 'offset',
+                        options: {
+                            offset: opts['offset'] ? opts['offset'] : [0, 0],
+                        },
+                    },
+                    {
+                        name: 'preventOverflow',
+                        options: touch ? { padding: popperPadding(), altAxis: true, tether: false } : {},
+                    }
+                ],
+            }
+        );
+
+        popper.show();
+        if (opts.hasOwnProperty('in') && typeof opts['in'] === 'function'){
+            opts['in']({ this: this, popper: popper, id: `popper` });
+        }
+
+        if (eventActive('firework') && global[global.race['cataclysm'] || global.race['orbit_decayed'] ? 'space' : 'city'].firework.on > 0){
+            $(popper).append(`<span class="pyro"><span class="before"></span><span class="after"></span></span>`);
+        }
+
+        if (touch){
+            popperWatch.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['style','class'] });
+        }
+    };
+
     if (opts['bind']){
         $(opts.elm).on(opts['bind_mouse_enter'] ? 'mouseenter' : 'mouseover',function(){
-            if (popperRef || $(`#popper`).length > 0){
-                clearPopper();
+            if (!tapInput()){
+                show.call(this);
             }
-            let wide = opts['wide'] ? ' wide' : '';
-            let classes = opts['classes'] ? opts['classes'] : `has-background-light has-text-dark pop-desc`;
-            var popper = $(`<div id="popper" class="popper${wide} ${classes}" data-id="${id}"></div>`);
-            if (opts['attach']){
-                $(opts['attach']).append(popper);
-            }
-            else {
-                $(`#main`).append(popper);
-            }
-            if (content){
-                popper.append(typeof content === 'function' ? content({ this: this, popper: popper }) : content);
-            }
-
-            popperRef = Popper.createPopper(opts['self'] ? this : $(opts.elm)[0],
-                document.querySelector(`#popper`),
-                {
-                    placement: opts['placement'],
-                    modifiers: [
-                        {
-                            name: 'flip',
-                            enabled: true,
-                        },
-                        {
-                            name: 'offset',
-                            options: {
-                                offset: opts['offset'] ? opts['offset'] : [0, 0],
-                            },
-                        }
-                    ],
-                }
-            );
-
-            popper.show();
-            if (opts.hasOwnProperty('in') && typeof opts['in'] === 'function'){
-                opts['in']({ this: this, popper: popper, id: `popper` });
-            }
-
-            if (eventActive('firework') && global[global.race['cataclysm'] || global.race['orbit_decayed'] ? 'space' : 'city'].firework.on > 0){
-                $(popper).append(`<span class="pyro"><span class="before"></span><span class="after"></span></span>`);
-            }
+        });
+        // iOS only sends clicks to elements that handle them, and the real handling happens in the document listener below.
+        $(opts.elm).on('click',$.noop).each(function(){
+            tapTargets.set(this,{ show: show, elm: opts.elm });
         });
     }
     if (opts['unbind']){
-        if ('ontouchstart' in document.documentElement && navigator.userAgent.match(/Mobi/ && global.settings.touch) ? true : false){
-            $(opts.elm).on('touchend',function(e){
-                clearPopper();
-                if (opts.hasOwnProperty('out') && typeof opts['out'] === 'function'){
-                    opts['out']({ this: this, popper: $(`#popper`), id: `popper`});
-                }
-            });
-        }
-        else {
-            $(opts.elm).on(opts['bind_mouse_enter'] ? 'mouseleave' : 'mouseout',function(){
-                clearPopper();
-                if (opts.hasOwnProperty('out') && typeof opts['out'] === 'function'){
-                    opts['out']({ this: this, popper: $(`#popper`), id: `popper`});
-                }
-            });
-        }
+        $(opts.elm).on(opts['bind_mouse_enter'] ? 'mouseleave' : 'mouseout',function(){
+            if (!tapInput()){
+                hide.call(this);
+            }
+        });
     }
 }
 
-if ('ontouchstart' in document.documentElement && navigator.userAgent.match(/Mobi/ && global.settings.touch) ? true : false){
-    $(document).on('touchend',function(e){
-        if ($(`.popper`).length === 1){
-            clearPopper();
-            return;
-        }
-    });
+// Compatibility mouse events trail every tap, and timing is the only way to tell them apart from a real mouse.
+function tapInput(){
+    return touchMode() && (touching > 0 || Date.now() - lastTouch < 800);
 }
+
+// True while the open tooltip came from a tap, in which case it should offer its action.
+export function tapOpen(){
+    return popperTap !== false;
+}
+
+function popperPadding(){
+    return {
+        top: ($(`#topBar`).outerHeight() || 0) + 4,
+        right: 4,
+        bottom: ($(`#touchKeys:visible`).outerHeight() || 0) + 4,
+        left: 4
+    };
+}
+
+function coveredByModal(elm){
+    return $(`.modal.is-active`).length > 0 && !elm.closest(`.modal`);
+}
+
+// A tooltip gets no mouseout when its element is removed, hidden or covered, so watch for those while one is open.
+const popperWatch = new MutationObserver(function(){
+    if (popperAnchor && (!popperAnchor.isConnected || popperAnchor.getClientRects().length === 0 || coveredByModal(popperAnchor))){
+        popperOut();
+    }
+});
+
+// The first tap on anything with a tooltip shows it. Controls only act on the tap after that, so that their cost can be read first.
+function tapTooltip(e,press){
+    let elm = e.target;
+    while (elm && !tapTargets.has(elm)){
+        elm = elm.parentElement;
+    }
+    if (!elm){
+        return;
+    }
+    const control = e.target.closest(`a, button, [role="button"], .action`);
+    if (control && control.matches(`.special, .on, .off`)){
+        return;
+    }
+
+    const target = tapTargets.get(elm);
+    if (popperTap !== elm){
+        target.show.call(elm,true);
+        if (control){
+            e.preventDefault();
+            e.stopPropagation();
+        }
+    }
+    else if (!press && !control){
+        popperOut();
+    }
+    else if (!press){
+        // Once the action has run show what it changed, on the redrawn element if it was replaced.
+        setTimeout(function(){
+            const current = elm.isConnected ? (popperTap === elm ? elm : false) : $(target.elm)[0];
+            if (current && tapTargets.has(current) && !coveredByModal(current)){
+                tapTargets.get(current).show.call(current,true);
+            }
+        });
+    }
+}
+
+document.addEventListener('click',function(e){
+    if (tapInput()){
+        tapTooltip(e,false);
+    }
+},true);
+
+// A long press is another way to ask for a tooltip, and must not bring up the browser's own menu. Text fields still need theirs for paste.
+document.addEventListener('contextmenu',function(e){
+    if (tapInput() && !e.target.closest(`input, textarea`)){
+        e.preventDefault();
+        tapTooltip(e,true);
+    }
+},true);
+
+document.addEventListener('touchstart',function(e){
+    touching = e.touches.length;
+    lastTouch = Date.now();
+    touchOrigin = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+    if (popperOut && touchMode() && !(popperTap && popperTap.contains(e.target)) && !e.target.closest(`#popper, #touchKeys`)){
+        popperOut();
+    }
+},{ capture: true, passive: true });
+
+document.addEventListener('touchmove',function(e){
+    if (popperOut && touchMode() && touchOrigin){
+        const moved = Math.max(Math.abs(e.touches[0].clientX - touchOrigin.x),Math.abs(e.touches[0].clientY - touchOrigin.y));
+        if (moved > 10){
+            popperOut();
+        }
+    }
+},{ capture: true, passive: true });
+
+['touchend','touchcancel'].forEach(function(type){
+    document.addEventListener(type,function(e){
+        touching = e.touches.length;
+        lastTouch = Date.now();
+    },{ capture: true, passive: true });
+});
 
 export function clearPopper(id){
     if (id && $(`#popper`).data('id') !== id){
@@ -107,6 +232,10 @@ export function clearPopper(id){
         popperRef = false;
     }
     clearElement($(`#popper`),true);
+    popperAnchor = false;
+    popperTap = false;
+    popperOut = false;
+    popperWatch.disconnect();
 }
 
 export function gameLoop(act){
@@ -583,6 +712,7 @@ function clearDragQueue(){
 function dragQueue(){
     let el = $('#buildQueue .buildList')[0];
     Sortable.create(el,{
+        ...touchDrag,
         onEnd(e){
             let order = global.queue.queue;
             order.splice(e.newDraggableIndex, 0, order.splice(e.oldDraggableIndex, 1)[0]);

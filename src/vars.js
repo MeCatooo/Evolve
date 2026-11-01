@@ -1357,6 +1357,14 @@ if (!global.settings['showStorage']){
 if (!global.settings.hasOwnProperty('touch')){
     global.settings['touch'] = false;
 }
+// Touch support used to be opt-in, so a saved false says nothing about what the player wants. Turn it on once for phones and tablets.
+if (!global.settings.hasOwnProperty('touchInit')){
+    global.settings['touchInit'] = true;
+    if (touchCapable() && window.matchMedia('(pointer: coarse)').matches){
+        global.settings['touch'] = true;
+        global.settings['qKey'] = true;
+    }
+}
 
 if (!global.settings.hasOwnProperty('lowPowerBalance')){
     global.settings['lowPowerBalance'] = false;
@@ -2020,6 +2028,17 @@ export var keyMap = {
     x100: false,
     q: false
 };
+
+export function touchCapable(){
+    return 'ontouchstart' in document.documentElement || navigator.maxTouchPoints > 0;
+}
+
+export function touchMode(){
+    return global.settings.touch && touchCapable();
+}
+
+// Hold before a drag starts on touch screens, so that a swipe across a sortable list still scrolls the page.
+export const touchDrag = { delay: 250, delayOnTouchOnly: true, touchStartThreshold: 8 };
 
 export function keyMultiplier(){
     let number = 1;

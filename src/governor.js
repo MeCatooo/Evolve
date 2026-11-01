@@ -1,4 +1,4 @@
-import { global, seededRandom, p_on, breakdown } from './vars.js';
+import { global, seededRandom, p_on, breakdown, touchDrag } from './vars.js';
 import { vBind, popover, tagEvent, calcQueueMax, calcRQueueMax, clearElement, adjustCosts, decodeStructId, timeCheck, arpaTimeCheck, hoovedRename } from './functions.js';
 import { races } from './races.js';
 import { actions, checkCityRequirements, housingLabel, wardenLabel, updateQueueNames, checkAffordable, drawTech, drawCity } from './actions.js';
@@ -407,6 +407,7 @@ function dragSpyopList(gov){
     let el = $(`#spyopConfig${gov}`)[0];
     if (el){
         Sortable.create(el,{
+            ...touchDrag,
             onEnd(e){
                 let order = global.race.governor.config.spyop[gov];
                 order.splice(e.newDraggableIndex, 0, order.splice(e.oldDraggableIndex, 1)[0]);

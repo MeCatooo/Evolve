@@ -1,4 +1,4 @@
-import { global, keyMultiplier, sizeApproximation, srSpeak, p_on, support_on } from './vars.js';
+import { global, keyMultiplier, sizeApproximation, srSpeak, p_on, support_on, touchDrag } from './vars.js';
 import { clearElement, popover, clearPopper, flib, fibonacci, eventActive, timeFormat, vBind, messageQueue, adjustCosts, calcQueueMax, calcRQueueMax, buildQueue, calcPrestige, calc_mastery, darkEffect, easterEgg, trickOrTreat, getTraitDesc, removeFromQueue, arpaTimeCheck, deepClone } from './functions.js';
 import { actions, updateQueueNames, drawTech, drawCity, addAction, removeAction, wardenLabel, checkCosts, structName } from './actions.js';
 import { races, traits, cleanAddTrait, cleanRemoveTrait, combineTraits, traitSkin, fathomCheck, planetTraits, setTraitRank, traitRank } from './races.js';
@@ -1765,6 +1765,7 @@ function dragGeneticsList(){
     let el = $('#geneticMinor')[0];
     if (el){
         Sortable.create(el,{
+            ...touchDrag,
             onEnd(e){
                 let order = global.settings.mtorder;
                 order.splice(e.newDraggableIndex, 0, order.splice(e.oldDraggableIndex, 1)[0]);

@@ -1,4 +1,4 @@
-import { global, seededRandom, keyMultiplier, p_on, support_on, gal_on, spire_on, hell_reports, hell_graphs, sizeApproximation, keyMap } from './vars.js';
+import { global, seededRandom, keyMultiplier, p_on, support_on, gal_on, spire_on, hell_reports, hell_graphs, sizeApproximation, keyMap, touchDrag } from './vars.js';
 import { vBind, clearElement, popover, clearPopper, timeFormat, powerCostMod, spaceCostMultiplier, messageQueue, powerModifier, calcPillar, deepClone, popCost, calcPrestige, get_qlevel, shrineBonusActive, getShrineBonus, buildQueue, timeCheck } from './functions.js';
 import { unlockAchieve, alevel, universeAffix } from './achieve.js';
 import { traits, races, fathomCheck, traitCostMod, orbitLength } from './races.js';
@@ -7083,6 +7083,7 @@ export function clearMechDrag(){
 function dragMechList(){
     let el = $('#mechList')[0];
     Sortable.create(el,{
+        ...touchDrag,
         onEnd(e){
             let items = e.from.querySelectorAll(':scope > .mechRow');
             e.from.insertBefore(e.item, items[e.oldIndex + (e.oldIndex > e.newIndex)]);

@@ -5732,3 +5732,84 @@ div.bigbang {
     position: absolute;
     top: 1rem;
 }
+
+// Touch input
+.touchKeys {
+    display: none;
+}
+
+body.touchMode {
+    // The keys bar inherits this so that it can stay opaque in every theme
+    background-color: inherit;
+    padding-bottom: ~"calc(3.25rem + env(safe-area-inset-bottom))";
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
+
+    input,
+    textarea {
+        -webkit-touch-callout: default;
+        -webkit-user-select: text;
+        user-select: text;
+    }
+
+    .touchKeys {
+        position: fixed;
+        z-index: 41;
+        right: 0;
+        bottom: 0;
+        left: 0;
+        display: flex;
+        gap: .25rem;
+        padding: .25rem .25rem ~"calc(.25rem + env(safe-area-inset-bottom))";
+        background-color: inherit;
+
+        a.button {
+            flex: 1 1 0;
+            height: 2.75rem;
+            min-width: 0;
+            margin: 0;
+
+            &[aria-pressed="true"] {
+                border: .125rem solid currentColor;
+            }
+        }
+    }
+
+    .main > div.popper.wide,
+    .main > div.popper,
+    .modal > div.popper.wide,
+    .modal > div.popper {
+        box-sizing: border-box;
+        max-width: ~"calc(100vw - .5rem)";
+    }
+
+    .popper {
+        max-height: ~"calc(100dvh - 5.5rem)";
+        overflow: hidden;
+
+        .touchButton {
+            display: flex;
+            width: 100%;
+            height: 2.75rem;
+            margin-bottom: .25rem;
+        }
+    }
+}
+
+// Past the phone layout the columns are sized to the viewport, so they have to scroll clear of the keys bar
+@media only screen and (min-width: 48.0625rem) {
+    body.touchMode .main {
+        .resources,
+        .content .settings,
+        .content .mtab,
+        .content #evolution,
+        .content .resTabs > section,
+        .content .govTabs2 > section,
+        .content #hellTabs > section {
+            box-sizing: border-box;
+            padding-bottom: 3.25rem;
+        }
+    }
+}
+// End touch input

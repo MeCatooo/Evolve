@@ -1,4 +1,4 @@
-import { global, keyMultiplier, sizeApproximation, p_on, support_on, quantum_level, callback_queue, active_rituals } from './vars.js';
+import { global, keyMultiplier, sizeApproximation, p_on, support_on, quantum_level, callback_queue, active_rituals, touchDrag } from './vars.js';
 import { loc } from './locale.js';
 import { vBind, popover, clearElement, powerGrid, easterEgg, trickOrTreat, binary_limit_test } from './functions.js';
 import { actions, checkCityRequirements, checkPowerRequirements } from './actions.js';
@@ -1906,6 +1906,7 @@ function dragPowerGrid(grid_type){
     let el = $(`#grid${grid_type}`)[0];
     let grids = gridDefs();
     Sortable.create(el,{
+        ...touchDrag,
         onEnd(e){
             let order = grids[grid_type].l;
             order.splice(e.newDraggableIndex, 0, order.splice(e.oldDraggableIndex, 1)[0]);

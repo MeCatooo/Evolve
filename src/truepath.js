@@ -1,4 +1,4 @@
-import { global, p_on, support_on, sizeApproximation, keyMap } from './vars.js';
+import { global, p_on, support_on, sizeApproximation, keyMap, touchDrag } from './vars.js';
 import { vBind, clearElement, popover, clearPopper, messageQueue, powerCostMod, powerModifier, spaceCostMultiplier, deepClone, calcPrestige, flib, darkEffect, adjustCosts, get_qlevel, timeCheck, timeFormat, buildQueue } from './functions.js';
 import { races, traits, orbitLength } from './races.js';
 import { spatialReasoning, unlockContainers } from './resources.js';
@@ -4925,6 +4925,7 @@ export function clearShipDrag(){
 function dragShipList(){
     let el = $('#shipList')[0];
     Sortable.create(el,{
+        ...touchDrag,
         onEnd(e){
             let order = global.space.shipyard.ships;
             order.splice(e.newDraggableIndex, 0, order.splice(e.oldDraggableIndex, 1)[0]);
@@ -6371,8 +6372,8 @@ function buildSolarMap(parentNode) {
     mapScale = 20.0;
 
     currentNode.append(
-      $(`<canvas id="mapCanvas" style="width: 100%; height: 75vh"></canvas>`)
-        .on("mouseup mouseover mouseout", () => mouseDown = false)
+      $(`<canvas id="mapCanvas" style="width: 100%; height: 75vh; touch-action: none"></canvas>`)
+        .on("mouseup mouseover mouseout touchend touchcancel", () => mouseDown = false)
         .on("mousedown", (e) => {
             mouseDown = true;
             dragOffset.x = e.clientX - mapShift.x;
@@ -6382,6 +6383,20 @@ function buildSolarMap(parentNode) {
             if (mouseDown) {
                 mapShift.x = e.clientX - dragOffset.x;
                 mapShift.y = e.clientY - dragOffset.y;
+                drawMap();
+            }
+        })
+        .on("touchstart", (e) => {
+            const touch = e.originalEvent.touches[0];
+            mouseDown = true;
+            dragOffset.x = touch.clientX - mapShift.x;
+            dragOffset.y = touch.clientY - mapShift.y;
+        })
+        .on("touchmove", (e) => {
+            if (mouseDown) {
+                const touch = e.originalEvent.touches[0];
+                mapShift.x = touch.clientX - dragOffset.x;
+                mapShift.y = touch.clientY - dragOffset.y;
                 drawMap();
             }
         })

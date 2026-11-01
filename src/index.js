@@ -1,4 +1,4 @@
-import { global, tmp_vars, save, message_logs, message_filters, webWorker } from './vars.js';
+import { global, tmp_vars, save, message_logs, message_filters, webWorker, keyMap, touchMode } from './vars.js';
 import { loc, locales } from './locale.js';
 import { setupStats, alevel } from './achieve.js';
 import { vBind, initMessageQueue, clearElement, flib, tagEvent, gameLoop, popover, clearPopper, powerGrid, easterEgg, trickOrTreat, drawIcon } from './functions.js';
@@ -1502,4 +1502,39 @@ export function index(){
             </span>
         </div>
     `);
+
+    // A phone has no modifier keys, so these stand in for them
+    $('body').append(`
+        <div id="touchKeys" class="touchKeys">
+            <a v-for="k in ['x10','x25','x100']" v-show="s.mKeys" class="button is-dark" :class="{ 'has-text-warning': keys[k] }" :aria-pressed="keys[k] ? 'true' : 'false'" role="button" @click="toggle(k)">{{ k }}</a>
+            <a v-show="s.qKey && (queue.display || r_queue.display)" class="button is-dark" :class="{ 'has-text-warning': keys.q }" :aria-pressed="keys.q ? 'true' : 'false'" role="button" @click="toggle('q')">${loc('queue')}</a>
+        </div>
+    `);
+    vBind({
+        el: `#touchKeys`,
+        data: {
+            s: global.settings,
+            keys: keyMap,
+            queue: global.queue,
+            r_queue: global.r_queue
+        },
+        methods: {
+            toggle(k){
+                keyMap[k] = !keyMap[k];
+            }
+        },
+        watch: {
+            's.touch': {
+                immediate: true,
+                handler(on){
+                    $('body').toggleClass('touchMode',touchMode());
+                    if (!on){
+                        Object.keys(keyMap).forEach(function(k){
+                            keyMap[k] = false;
+                        });
+                    }
+                }
+            }
+        }
+    });
 }
