@@ -5,6 +5,7 @@
     <meta http-equiv="Content-type" content="text/html;charset=utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="theme-color" content="#1f2424">
+    <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <link rel="manifest" href="manifest.webmanifest">
@@ -26,11 +27,22 @@
     <script src="evolve/main.js" type="module"></script>
     <script>
         if ('serviceWorker' in navigator) {
+            // This page may have been served by the previous version, get on the new one right away
+            const upgrading = !!navigator.serviceWorker.controller;
+            navigator.serviceWorker.addEventListener('controllerchange', () => {
+                if (upgrading) {
+                    window.location.reload();
+                }
+            });
             window.addEventListener('load', () => {
                 navigator.serviceWorker.register('./sw.js').catch((error) => {
                     console.warn('Evolve offline support could not be started.', error);
                 });
             });
+        }
+        // Saves live in localStorage, an installed app shouldn't lose them when the phone runs low on space
+        if (navigator.storage && navigator.storage.persist && (navigator.standalone || window.matchMedia('(display-mode: standalone)').matches)) {
+            navigator.storage.persist();
         }
     </script>
 </head>

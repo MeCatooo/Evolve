@@ -842,13 +842,18 @@ set_qlevel(calcQuantumLevel(true));
 $('#lbl_city').html('Village');
 
 var loopTick = 0; // Used to synchronize the fast, mid, and long loops to each other
+var loopBacklog = 0; // Loop periods still to be simulated
+var loopYield = false; // Timer to continue working through the backlog
 export function execGameLoops(periods = 1){
     // Currently there is no smart catch-up mechanism
-    // Limit to 1 minute (12 game days) of simulation per call
+    // Limit to 1 minute (12 game days) of simulation
     const maxCatchUp = webWorker.longRatio * 12;
-    periods = Math.min(periods, maxCatchUp); 
+    loopBacklog = Math.min(loopBacklog + periods, maxCatchUp);
 
-    while (webWorker.s && periods--){
+    // Catching up on a slow device takes seconds, so hand control back to the page regularly
+    const deadline = performance.now() + 50;
+    while (webWorker.s && loopBacklog > 0 && performance.now() < deadline){
+        loopBacklog--;
         ++loopTick;
         const doMid = (loopTick % webWorker.midRatio) === 0;
         const doLong = (loopTick % webWorker.longRatio) === 0;
@@ -864,19 +869,150 @@ export function execGameLoops(periods = 1){
         // Overflow prevention
         if (doMid && doLong){ loopTick = 0; }
     }
+
+    if (!webWorker.s){
+        loopBacklog = 0;
+    }
+    else if (loopBacklog > 0 && !loopYield){
+        loopYield = setTimeout(function(){
+            loopYield = false;
+            execGameLoops(0);
+        }, 0);
+    }
 }
 
-if (window.Worker){
-    webWorker.w = new Worker("evolve/evolve.js");
-    webWorker.w.addEventListener('message', function(e){
+const loopGrace = 3000; // How long the loop may stay silent before it's considered dead
+var loopBeat = performance.now(); // Time of the last sign of life from the loop
+var loopChecked = performance.now(); // Time of the last watchdog check
+var loopRevived = 0; // Number of restarts since the last sign of life
+var loopHalted = false; // The game shut the loop down on purpose
+
+function loopPulse(periods){
+    loopBeat = performance.now();
+    loopRevived = 0;
+    execGameLoops(periods);
+}
+
+// Stands in for the web worker when it can't be used. Timers on a hidden page get throttled, ticks are based on elapsed time to keep up.
+function timerLoop(){
+    let timerId, period, target;
+    function tick(){
+        const now = performance.now();
+        const periods = 1 + Math.floor(Math.max(now - target, 0) / period);
+        target += periods * period;
+        timerId = setTimeout(tick, target - now);
+        loopPulse(periods);
+    }
+    return {
+        postMessage(data){
+            clearTimeout(timerId);
+            if (data.loop === 'start'){
+                period = data.period;
+                target = performance.now() + period;
+                timerId = setTimeout(tick, period);
+            }
+        },
+        terminate(){
+            clearTimeout(timerId);
+        }
+    };
+}
+
+function workerLoop(){
+    const worker = new Worker("evolve/evolve.js");
+    worker.addEventListener('message', function(e){
         const data = e.data;
+        if (worker !== webWorker.w){
+            return;
+        }
         switch (data.loop) {
             case 'main':
-                execGameLoops(data.periods);
+                loopPulse(data.periods);
                 break;
         }
     }, false);
+    worker.addEventListener('error', function(){
+        if (worker === webWorker.w && !loopHalted){
+            restartLoop(true);
+        }
+    }, false);
+    return worker;
 }
+
+function createLoop(noWorker){
+    let loop = false;
+    try {
+        loop = noWorker ? false : workerLoop();
+    }
+    catch {
+        console.warn('Evolve could not start its web worker.');
+    }
+    loop = loop || timerLoop();
+
+    // Everything that stops the game on purpose (resets, reloads) calls terminate on the loop
+    const discard = loop.terminate.bind(loop);
+    loop.terminate = function(){
+        loopHalted = true;
+        discard();
+    };
+    loop.discard = discard;
+    webWorker.w = loop;
+}
+
+function restartLoop(noWorker){
+    webWorker.w.discard();
+    createLoop(noWorker);
+    loopBeat = performance.now();
+    if (webWorker.s){
+        gameLoop('stop');
+        gameLoop('start');
+    }
+}
+
+// Phones can suspend or kill the web worker while the app is in the background, without telling the page
+function loopWatchdog(){
+    const now = performance.now();
+    // This page wasn't running either, give the loop a moment to report back before judging it
+    if (now - loopChecked > loopGrace || !webWorker.s){
+        loopBeat = now;
+    }
+    loopChecked = now;
+    if (!loopHalted && now - loopBeat > loopGrace){
+        loopRevived++;
+        restartLoop(loopRevived > 2);
+    }
+}
+
+function saveGame(){
+    if (!global.race.hasOwnProperty('geck')){
+        save.setItem('evolved',LZString.compressToUTF16(JSON.stringify(global)));
+    }
+}
+
+// Backgrounded apps get killed without warning. Whatever halted the loop has saved already, or is resetting the game.
+var exitSaved = 0;
+function saveOnExit(){
+    if (!loopHalted && Date.now() - exitSaved > 1000){
+        exitSaved = Date.now();
+        saveGame();
+    }
+}
+
+document.addEventListener('visibilitychange', function(){
+    if (document.visibilityState === 'hidden'){
+        saveOnExit();
+    }
+    else {
+        loopWatchdog();
+    }
+});
+window.addEventListener('pagehide', saveOnExit);
+window.addEventListener('pageshow', loopWatchdog);
+window.addEventListener('focus', loopWatchdog);
+document.addEventListener('resume', loopWatchdog);
+intervals['loop_watchdog'] = setInterval(loopWatchdog, 1000);
+
+createLoop();
 gameLoop('start');
 
 resourceAlt();
@@ -12820,13 +12956,13 @@ function longLoop(){
         addATime(currentTimestamp);
         // The restart is needed to update the duration of the loop interval.
         restartNeeded = true;
+        // The accelerated time covers this gap, it must not be simulated on top of that.
+        loopBacklog = 0;
     }
 
     // Save game state
     global.stats['current'] = currentTimestamp;
-    if (!global.race.hasOwnProperty('geck')){
-        save.setItem('evolved',LZString.compressToUTF16(JSON.stringify(global)));
-    }
+    saveGame();
 
     if (global.race.species !== 'protoplasm' && (global.stats.days + global.stats.tdays) % 100000 === 99999){
         messageQueue(loc(`backup_warning`), 'advanced', true);

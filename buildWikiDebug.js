@@ -5,6 +5,7 @@ require("esbuild")
     bundle: true,
     minify: false,
     sourcemap : true,
+    format: "esm",
     outfile: "wiki/wiki.js",
   })
   .catch(() => process.exit(1));

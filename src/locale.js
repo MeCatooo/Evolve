@@ -1,7 +1,7 @@
 import { global, save } from './vars.js';
 
 let strings;
-getString(global.settings.locale);
+await getString(global.settings.locale);
 
 export function loc(key, variables) {
     let string = strings[key];
@@ -39,16 +39,14 @@ export function loc(key, variables) {
     return string;
 }
 
-function getString(locale) {
-    $.ajaxSetup({ async: false });
-
-    let defaultString;
-    $.getJSON("strings/strings.json", (data) => { defaultString = data; });
+// These have to stay asynchronous: Chrome sends synchronous requests past the service worker, the game couldn't start offline
+async function getString(locale) {
+    let defaultString = await $.getJSON("strings/strings.json");
 
     if (locale != "en-US"){
         let localeString;
         try {
-            $.getJSON(`strings/strings.${locale}.json`, (data) => { localeString = data; })
+            localeString = await $.getJSON(`strings/strings.${locale}.json`);
         }
         catch (e) {
             console.error(e,e.stack);
@@ -83,7 +81,6 @@ function getString(locale) {
         }
     }
 
-    $.ajaxSetup({ async: true });
     strings = defaultString;
 }
 

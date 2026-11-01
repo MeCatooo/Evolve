@@ -11,6 +11,8 @@ self.addEventListener('message', function(e){
     const data = e.data;
     switch (data.loop) {
         case 'start':
+            // A second start without a clear must not leave two timers running
+            clearTimeout(timerId);
             loopInterval = data.period;
             loopHist = new Array(loopN).fill(0);
             loopSkew = 0;

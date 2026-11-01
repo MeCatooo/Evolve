@@ -772,6 +772,11 @@ export function tradeSummery(){
 // Load resource function
 // This function defines each resource, loads saved values from localStorage
 // And it creates Vue binds for various resource values
+function resourceCapped(name){
+    let res = global.resource[name];
+    return res.max > 0 && res.amount >= res.max && res.diff >= 0;
+}
+
 function loadResource(name,wiki,max,rate,tradable,stackable,color){
     color = color || 'info';
     if (!global.resource[name]){
@@ -837,7 +842,7 @@ function loadResource(name,wiki,max,rate,tradable,stackable,color){
         res_container = $(`<div id="res${name}" class="resource crafted" v-show="display"><div><h3 class="res has-text-${color}">{{ name | namespace }}</h3><span id="cnt${name}" class="count">{{ amount | diffSize }}</span></div></div>`);
     }
     else {
-        res_container = $(`<div id="res${name}" class="resource${global.settings.resBar[name] ? ` showBar` : ``}" v-show="display" :style="{ '--percent-full': (bar && max > 0 ? (amount/max)*100 : 0) + '%' }"><div><h3 class="res has-text-${color} bar" @click="toggle('${name}')">{{ name | namespace }}</h3><span id="cnt${name}" class="count">{{ amount | size }} / {{ max | size }}</span></div></div>`);
+        res_container = $(`<div id="res${name}" class="resource${global.settings.resBar[name] ? ` showBar` : ``}" v-show="display" :data-capped="capped()" :style="{ '--percent-full': (bar && max > 0 ? (amount/max)*100 : 0) + '%' }"><div><h3 class="res has-text-${color} bar" @click="toggle('${name}')">{{ name | namespace }}</h3><span id="cnt${name}" class="count">{{ amount | size }} / {{ max | size }}</span></div></div>`);
     }
 
     if (stackable){
@@ -849,7 +854,7 @@ function loadResource(name,wiki,max,rate,tradable,stackable,color){
     
     let infopops = false;
     if (rate !== 0 || (max === -1 && rate === 0 && global.race['no_craft']) || name === 'Scarletite' || name === 'Quantium'){
-        res_container.append($(`<span id="inc${name}" class="diff" :aria-label="resRate('${name}')">{{ diff | diffSize }} /s</span>`));
+        res_container.append($(`<span id="inc${name}" class="diff" :aria-label="resRate('${name}')">{{ diff | diffSize | perSecond }}</span>`));
     }
     else if (max === -1 && !global.race['no_craft'] && name !== 'Scarletite' && name !== 'Quantium'){
         let craft = $('<span class="craftable"></span>');
@@ -888,6 +893,10 @@ function loadResource(name,wiki,max,rate,tradable,stackable,color){
                 }
                 return sizeApproximation(value,2);
             },
+            // The amount stops moving at the cap, a positive rate would make that look like a bug
+            perSecond(value){
+                return resourceCapped(name) ? loc('morale_max') : `${value} /s`;
+            },
             namespace(val){
                 return val.replace("_", " ");
             }
@@ -895,7 +904,10 @@ function loadResource(name,wiki,max,rate,tradable,stackable,color){
         methods: {
             resRate(n){
                 let diff = sizeApproximation(global.resource[n].diff,2);
-                return `${global.resource[name].name} ${diff} per second`;
+                return `${global.resource[name].name} ${diff} per second${resourceCapped(name) ? ` (${loc('morale_max')})` : ''}`;
+            },
+            capped(){
+                return resourceCapped(name) ? 'true' : null;
             },
             trigModal(){
                 this.$buefy.modal.open({
